@@ -1,0 +1,340 @@
+dd openapi: 3.0.1
+info:
+  title: Travel Social Network API
+  version: 1.0.3
+servers:
+  - url: https://api.example.com
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Places
+  - name: Posts
+  - name: Feed
+  - name: Reactions
+  - name: Comments
+  - name: Uploads
+
+paths:
+  /places:
+    get:
+      tags: [Places]
+      summary: Список мест
+      description: >
+        Список мест с курсорной пагинацией и поиском по названию.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/after'
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceListResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /places/popular:
+    get:
+      tags: [Places]
+      summary: Популярные места
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/after'
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceListResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /posts:
+    get:
+      tags: [Posts]
+      summary: Список постов
+      parameters:
+        - $ref: '#/components/parameters/author_id'
+        - $ref: '#/components/parameters/place_id'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/after'
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostListResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Posts]
+      summary: Создать пост
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostCreateRequest' }
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /posts/following:
+    get:
+      tags: [Feed]
+      summary: Лента подписок
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/after'
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostListResponse' }
+
+  /likes:
+    post:
+      tags: [Reactions]
+      summary: Поставить лайк посту
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LikeCreateRequest'
+      responses:
+        '204': { description: Лайк установлен }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Уже лайкнуто
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /comments:
+    post:
+      tags: [Comments]
+      summary: Добавить комментарий
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentCreateRequest' }
+      responses:
+        '201':
+          description: Создано
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /uploads/presign:
+    post:
+      tags: [Uploads]
+      summary: Инициализация загрузки в бакет
+      description: Вернёт URL для прямой загрузки и ключ объекта; в POST /posts передаётся storage_key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadImageRequest'
+      responses:
+        '201':
+          description: ОК
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadInitResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      description: Размер страницы
+    after:
+      name: after
+      in: query
+      schema: { type: string }
+      description: Курсор следующей страницы
+    q:
+      name: q
+      in: query
+      schema: { type: string }
+      description: Поиск по названию места (подстрока)
+    author_id:
+      name: author_id
+      in: query
+      schema: { $ref: '#/components/schemas/UUID' }
+      description: Фильтр постов по автору
+    place_id:
+      name: place_id
+      in: query
+      schema: { $ref: '#/components/schemas/UUID' }
+      description: Фильтр постов, привязанных к месту
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "6a7a3b12-6a9c-4e35-9f3b-4e6e8f4c9d21"
+    ISODateTime:
+      type: string
+      format: date-time
+      example: "2025-10-15T14:03:27Z"
+    PageMeta:
+      type: object
+      required: [limit]
+      properties:
+        limit: { type: integer, example: 50 }
+        next_after:
+          type: string
+          nullable: true
+          example: "eyJvZmZzZXQiOjE3MDEyMzQ1Nn0="
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: bad_request }
+        message: { type: string, example: Invalid parameter 'limit' }
+
+    UserPublic:
+      type: object
+      required: [id, username, name]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string, example: "Ivan Petrov" }
+
+    PlaceItem:
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string, example: "Красная площадь" }
+    PlaceListResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PlaceItem' }
+        page: { $ref: '#/components/schemas/PageMeta' }
+
+    ImageRef:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL
+        etag:
+          type: string
+          nullable: true
+          description: Версия/ETag для кэшей.
+    PostListItem:
+      type: object
+      required: [id, author, description, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        author: { $ref: '#/components/schemas/UserPublic' }
+        description: { type: string, maxLength: 10000 }
+        places:
+          type: array
+          items: { $ref: '#/components/schemas/PlaceItem' }
+        images:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ImageRef' }
+        likes_count: { type: integer, example: 57 }
+        comments_count: { type: integer, example: 13 }
+        created_at: { $ref: '#/components/schemas/ISODateTime' }
+        updated_at: { $ref: '#/components/schemas/ISODateTime' }
+    PostDetail:
+      allOf:
+        - $ref: '#/components/schemas/PostListItem'
+    PostListResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PostListItem' }
+        page: { $ref: '#/components/schemas/PageMeta' }
+    PostCreateRequest:
+      type: object
+      required: [description]
+      properties:
+        description: { type: string, maxLength: 10000 }
+        place_ids:
+          type: array
+          items: { $ref: '#/components/schemas/UUID' }
+        images:
+          type: array
+          description: Предварительно загруженные изображения.
+          items:
+            type: object
+            required: [storage_key]
+            properties:
+              storage_key:
+                type: string
+                description: Ключ в объектном хранилище
+
+    LikeCreateRequest:
+      type: object
+      required: [post_id]
+      properties:
+        post_id: { $ref: '#/components/schemas/UUID' }
+
+    CommentCreateRequest:
+      type: object
+      required: [post_id, body]
+      properties:
+        post_id: { $ref: '#/components/schemas/UUID' }
+        parent_id: { $ref: '#/components/schemas/UUID' }
+        body: { type: string, maxLength: 10000 }
+
+    UploadImageRequest:
+      type: object
+      required: [content_type, size_bytes]
+      properties:
+        content_type:
+          type: string
+          example: image/jpeg
+        size_bytes:
+          type: integer
+        path_hint:
+          type: string
+          description: Опционально — желаемый префикс пути
+    UploadInitResponse:
+      type: object
+      required: [storage_key, upload_url, expires_at]
+      properties:
+        storage_key:
+          type: string
+        upload_url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
