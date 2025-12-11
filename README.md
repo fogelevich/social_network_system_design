@@ -77,15 +77,13 @@
 
 ```
 GET /places
-GET /places/popular
 GET /posts
-GET /posts/following
-GET /posts/{post_id}/comments
-GET /posts/{post_id}/likes
-POST /likes
-POST /comments
 POST /posts
-POST /uploads/image
+GET /posts/{post_id}/comments
+POST /posts/{post_id}/comments
+GET /posts/{post_id}/likes
+POST /posts/{post_id}/likes
+POST /uploads/images
 ```
 
 ## Entities
